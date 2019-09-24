@@ -15,11 +15,15 @@ io.on('connection', socket => {
   console.log('New user');
   socket.emit('welcome-from-server', 'Welcome');
   socket.on('username-from-client', async data => {
-    const userEntity = await findOrCreateUser(data);
-    if (entity.success === false) {
-      return console.error('ERROR:', userEntity.error);
-    }
+    try {
+      const userEntity = await findOrCreateUser(data);
+      if (userEntity.success === false) {
+        return console.error('ERROR:', userEntity.error);
+      }
 
-    return socket.emit('send-entity-from-server', userEntity);
+      return socket.emit('send-entity-from-server', userEntity);
+    } catch (error) {
+      return console.error('ERROR:', error);
+    }
   });
 });
