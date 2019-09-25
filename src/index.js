@@ -4,7 +4,10 @@ const socketIO = require('socket.io');
 const User = require('./models/User');
 const Lobby = require('./models/Lobby');
 const { findOrCreateUser } = require('./controllers/user.controller');
-const { createLobby } = require('./controllers/lobby.controller');
+const {
+  createLobby,
+  getAllLobbies,
+} = require('./controllers/lobby.controller');
 
 User.belongsTo(Lobby);
 Lobby.hasMany(User);
@@ -29,6 +32,20 @@ io.on('connection', socket => {
       }
 
       return socket.emit('send-user-entity-from-server', userEntity);
+    } catch (error) {
+      return console.error('ERROR:', error);
+    }
+  });
+
+  socket.on('all-lobbies-request-from-client', async _data => {
+    try {
+      const allLobbies = await getAllLobbies();
+
+      if (allLobbies.status === false) {
+        return console.error('ERROR:', allLobbies.error);
+      }
+
+      socket.emit('all-lobbies-from-server', allLobbies);
     } catch (error) {
       return console.error('ERROR:', error);
     }
