@@ -7,6 +7,7 @@ const { findOrCreateUser } = require('./controllers/user.controller');
 const {
   createLobby,
   getAllLobbies,
+  putUserInLobby,
 } = require('./controllers/lobby.controller');
 
 User.belongsTo(Lobby);
@@ -64,6 +65,29 @@ io.on('connection', socket => {
         'send-lobby-entity-from-server',
         lobbyEntity,
       );
+    } catch (error) {
+      return console.error('ERROR:', error);
+    }
+  });
+
+  socket.on('user-in-lobby-from-client', async data => {
+    try {
+      const { lobbyId, userId } = data;
+      const updateLobbyEntity = await putUserInLobby(lobbyId, userId);
+      const allLobbies = await getAllLobbies();
+
+      if (
+        (updateLobbyEntity.status === false) |
+        (allLobbies.status === false)
+      ) {
+        if (allLobbies.status === false) {
+          return console.error('ERROR:', allLobbies.error);
+        }
+
+        return console.error('ERROR:', updateLobbyEntity.error);
+      }
+
+      return socket.broadcast.emit('user-in-lobby-from-server', allLobbies);
     } catch (error) {
       return console.error('ERROR:', error);
     }
