@@ -6,9 +6,9 @@ const Lobby = db.define(
   'lobby',
   {
     name: Sequelize.STRING,
-    playerOneId: Sequelize.INTEGER,
-    playerTwoId: Sequelize.INTEGER,
     score: Sequelize.STRING,
+    playerOneChoice: Sequelize.STRING,
+    playerTwoChoice: Sequelize.STRING,
   },
   { timestamps: false },
 );

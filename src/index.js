@@ -7,6 +7,8 @@ const { findOrCreateUser } = require('./controllers/user.controller');
 const {
   createLobby,
   getAllLobbies,
+  putUserInLobby,
+  updateLobbyChoices,
 } = require('./controllers/lobby.controller');
 
 User.belongsTo(Lobby);
@@ -19,6 +21,36 @@ const server = app.listen(port, () => console.log(`listening on ${port}`));
 const io = socketIO(server);
 
 app.use(express.json());
+
+const gameWinner = (choice1, choice2) => {
+  const [, choiceOne] = choice1.split('-');
+  const [, choiceTwo] = choice2.split('-');
+
+  const choices = {
+    scissors: 'scissors',
+    rock: 'rock',
+    paper: 'paper',
+  };
+
+  const { scissors, rock, paper } = choices;
+
+  if (choiceOne === scissors) {
+    if (choiceTwo === rock) return choice2;
+    if (choiceTwo === paper) return choice1;
+    return 'DRAW';
+  }
+
+  if (choiceOne === rock) {
+    if (choiceTwo === scissors) return choice1;
+    if (choiceTwo === paper) return choice2;
+    return 'DRAW';
+  }
+
+  // choice 1 is paper
+  if (choiceTwo === rock) return choice2;
+  if (choiceTwo === scissors) return choice1;
+  return 'DRAW';
+};
 
 io.on('connection', socket => {
   console.log(`New user with userId ${socket.id}`);
@@ -64,6 +96,73 @@ io.on('connection', socket => {
         'send-lobby-entity-from-server',
         lobbyEntity,
       );
+    } catch (error) {
+      return console.error('ERROR:', error);
+    }
+  });
+
+  socket.on('user-in-lobby-from-client', async data => {
+    try {
+      const { lobbyId, userId } = data;
+      const updateLobbyEntity = await putUserInLobby(lobbyId, userId);
+      const allLobbies = await getAllLobbies();
+
+      if (
+        (updateLobbyEntity.status === false) |
+        (allLobbies.status === false)
+      ) {
+        if (allLobbies.status === false) {
+          return console.error('ERROR:', allLobbies.error);
+        }
+
+        return console.error('ERROR:', updateLobbyEntity.error);
+      }
+
+      socket.emit('user-in-lobby-from-server', allLobbies);
+      return socket.broadcast.emit('user-in-lobby-from-server', allLobbies);
+    } catch (error) {
+      return console.error('ERROR:', error);
+    }
+  });
+
+  socket.on('user-in-game-choice-from-client', async data => {
+    try {
+      const { userId, lobbyId, choice } = data;
+
+      const findLobby = await Lobby.findOne({ where: { id: lobbyId } });
+
+      if (
+        findLobby.playerOneChoice !== null ||
+        findLobby.playerTwoChoice !== null
+      ) {
+        await updateLobbyChoices(userId, choice, findLobby);
+
+        socket.broadcast.emit(`user-in-game-${lobbyId}-winner-from-server`, {
+          winner: gameWinner(
+            findLobby.playerOneChoice,
+            findLobby.playerTwoChoice,
+          ),
+        });
+        return socket.emit(`user-in-game-${lobbyId}-winner-from-server`, {
+          winner: gameWinner(
+            findLobby.playerOneChoice,
+            findLobby.playerTwoChoice,
+          ),
+        });
+      }
+
+      const updatedLobby = await updateLobbyChoices(userId, choice, findLobby);
+
+      if (updatedLobby.success === false) {
+        return console.error('ERROR:', updatedLobby.error);
+      }
+
+      socket.broadcast.emit(`user-in-game-${lobbyId}-choice-from-server`, {
+        winner: null,
+      });
+      return socket.emit(`user-in-game-${lobbyId}-choice-from-server`, {
+        winner: null,
+      });
     } catch (error) {
       return console.error('ERROR:', error);
     }

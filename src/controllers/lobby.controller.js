@@ -3,7 +3,7 @@ const User = require('../models/User');
 
 const getAllLobbies = async () => {
   try {
-    const findAllLobbies = await Lobby.findAll({ include: [User] });
+    const findAllLobbies = await Lobby.findAll({ include: [{ model: User }] });
 
     return { success: true, doc: findAllLobbies };
   } catch (error) {
@@ -13,10 +13,13 @@ const getAllLobbies = async () => {
 
 const createLobby = async lobbyName => {
   try {
-    const createdLobby = await Lobby.create({
-      name: lobbyName,
-      score: '0-0',
-    });
+    const createdLobby = await Lobby.create(
+      {
+        name: lobbyName,
+        score: '0-0',
+      },
+      { include: [{ model: User }] },
+    );
 
     return { success: true, doc: createdLobby };
   } catch (error) {
@@ -24,4 +27,50 @@ const createLobby = async lobbyName => {
   }
 };
 
-module.exports = { createLobby, getAllLobbies };
+const putUserInLobby = async (lobbyId, userId) => {
+  try {
+    const findUser = await User.findOne({ where: { id: userId } });
+
+    if (!findUser) {
+      return { success: false, error: 'COULD NOT FIND USER' };
+    }
+
+    await findUser.update({ lobbyId: lobbyId });
+    const findLobby = await Lobby.findOne({
+      where: { id: lobbyId },
+      include: [{ model: User }],
+    });
+    return { success: true, doc: findLobby };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
+const updateLobbyChoices = async (userId, choice, lobby) => {
+  try {
+    if (!lobby) {
+      return { success: false, error: 'COULD NOT FIND LOBBY' };
+    }
+
+    if (lobby.playerOneChoice === null) {
+      const updatedLobby = await lobby.update({
+        playerOneChoice: `${userId}-${choice}`,
+      });
+      return { success: true, doc: updatedLobby };
+    }
+
+    const updatedLobby = await lobby.update({
+      playerTwoChoice: `${userId}-${choice}`,
+    });
+    return { success: true, doc: updatedLobby };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
+module.exports = {
+  createLobby,
+  getAllLobbies,
+  putUserInLobby,
+  updateLobbyChoices,
+};
