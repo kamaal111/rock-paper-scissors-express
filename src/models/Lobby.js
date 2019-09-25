@@ -7,6 +7,8 @@ const Lobby = db.define(
   {
     name: Sequelize.STRING,
     score: Sequelize.STRING,
+    playerOneChoice: Sequelize.STRING,
+    playerTwoChoice: Sequelize.STRING,
   },
   { timestamps: false },
 );

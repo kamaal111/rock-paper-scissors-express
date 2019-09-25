@@ -46,4 +46,31 @@ const putUserInLobby = async (lobbyId, userId) => {
   }
 };
 
-module.exports = { createLobby, getAllLobbies, putUserInLobby };
+const updateLobbyChoices = async (userId, choice, lobby) => {
+  try {
+    if (!lobby) {
+      return { success: false, error: 'COULD NOT FIND LOBBY' };
+    }
+
+    if (lobby.playerOneChoice === null) {
+      const updatedLobby = await lobby.update({
+        playerOneChoice: `${userId}-${choice}`,
+      });
+      return { success: true, doc: updatedLobby };
+    }
+
+    const updatedLobby = await lobby.update({
+      playerTwoChoice: `${userId}-${choice}`,
+    });
+    return { success: true, doc: updatedLobby };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
+module.exports = {
+  createLobby,
+  getAllLobbies,
+  putUserInLobby,
+  updateLobbyChoices,
+};
