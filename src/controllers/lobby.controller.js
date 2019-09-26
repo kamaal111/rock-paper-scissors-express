@@ -54,13 +54,13 @@ const updateLobbyChoices = async (userId, choice, lobby) => {
 
     if (lobby.playerOneChoice === null) {
       const updatedLobby = await lobby.update({
-        playerOneChoice: `${userId}-${choice}`,
+        playerOneChoice: `${userId}-${choice}-1`,
       });
       return { success: true, doc: updatedLobby };
     }
 
     const updatedLobby = await lobby.update({
-      playerTwoChoice: `${userId}-${choice}`,
+      playerTwoChoice: `${userId}-${choice}-2`,
     });
     return { success: true, doc: updatedLobby };
   } catch (error) {
