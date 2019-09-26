@@ -68,9 +68,27 @@ const updateLobbyChoices = async (userId, choice, lobby) => {
   }
 };
 
+const resetLobbyAndSetScore = async (score, lobby) => {
+  try {
+    if (!lobby) {
+      return { success: false, error: 'COULD NOT FIND LOBBY' };
+    }
+
+    const updatedLobby = await lobby.update({
+      score,
+      playerOneChoice: null,
+      playerTwoChoice: null,
+    });
+    return { success: true, doc: updatedLobby };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
 module.exports = {
   createLobby,
   getAllLobbies,
   putUserInLobby,
   updateLobbyChoices,
+  resetLobbyAndSetScore,
 };
