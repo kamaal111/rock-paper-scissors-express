@@ -11,12 +11,13 @@ const {
   updateLobbyChoices,
 } = require('./controllers/lobby.controller');
 
+const { port } = require('../config');
+
 User.belongsTo(Lobby);
 Lobby.hasMany(User);
 
 const app = express();
 
-const port = process.env.PORT | 4000;
 const server = app.listen(port, () => console.log(`listening on ${port}`));
 const io = socketIO(server);
 
@@ -34,21 +35,38 @@ const gameWinner = (choice1, choice2) => {
 
   const { scissors, rock, paper } = choices;
 
-  if (choiceOne === scissors) {
-    if (choiceTwo === rock) return choice2;
-    if (choiceTwo === paper) return choice1;
+  if (choiceOne === scissors && choiceTwo === rock) {
+    return choice2;
+  }
+
+  if (choiceOne === paper && choiceTwo === rock) {
+    return choice1;
+  }
+
+  if (choiceOne === rock && choiceTwo === rock) {
     return 'DRAW';
   }
 
-  if (choiceOne === rock) {
-    if (choiceTwo === scissors) return choice1;
-    if (choiceTwo === paper) return choice2;
+  if (choiceOne === scissors && choiceTwo === paper) {
+    return choice1;
+  }
+
+  if (choiceOne === rock && choiceTwo === paper) {
+    return choice2;
+  }
+
+  if (choiceOne === paper && choiceTwo === paper) {
     return 'DRAW';
   }
 
-  // choice 1 is paper
-  if (choiceTwo === rock) return choice2;
-  if (choiceTwo === scissors) return choice1;
+  if (choiceOne === paper && choiceTwo === scissors) {
+    return choice2;
+  }
+
+  if (choiceOne === rock && choiceTwo === scissors) {
+    return choice1;
+  }
+
   return 'DRAW';
 };
 
@@ -136,6 +154,8 @@ io.on('connection', socket => {
         findLobby.playerTwoChoice !== null
       ) {
         await updateLobbyChoices(userId, choice, findLobby);
+
+        // after 5 seconds send reset
 
         socket.broadcast.emit(`user-in-game-${lobbyId}-winner-from-server`, {
           winner: gameWinner(
