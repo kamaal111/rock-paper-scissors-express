@@ -3,12 +3,16 @@ const socketIO = require('socket.io');
 
 const User = require('./models/User');
 const Lobby = require('./models/Lobby');
-const { findOrCreateUser } = require('./controllers/user.controller');
+const {
+  findOrCreateUser,
+  incrementUserScore,
+} = require('./controllers/user.controller');
 const {
   createLobby,
   getAllLobbies,
   putUserInLobby,
   updateLobbyChoices,
+  resetLobbyAndSetScore,
 } = require('./controllers/lobby.controller');
 
 const { port } = require('../config');
@@ -87,6 +91,18 @@ io.on('connection', socket => {
     }
   });
 
+  socket.on('get-all-users-from-client', async _data => {
+    try {
+      const allUsers = await User.findAll({});
+      return socket.emit('get-all-users-from-server', {
+        success: true,
+        doc: allUsers,
+      });
+    } catch (error) {
+      return console.error('ERROR:', error);
+    }
+  });
+
   socket.on('all-lobbies-request-from-client', async _data => {
     try {
       const allLobbies = await getAllLobbies();
@@ -147,27 +163,45 @@ io.on('connection', socket => {
     try {
       const { userId, lobbyId, choice } = data;
 
-      const findLobby = await Lobby.findOne({ where: { id: lobbyId } });
+      const findLobby = await Lobby.findOne({
+        where: { id: lobbyId },
+        include: [{ model: User }],
+      });
 
       if (
         findLobby.playerOneChoice !== null ||
         findLobby.playerTwoChoice !== null
       ) {
-        await updateLobbyChoices(userId, choice, findLobby);
+        const updatedLobby = await updateLobbyChoices(
+          userId,
+          choice,
+          findLobby,
+        );
 
-        // after 5 seconds send reset
+        if (updatedLobby.success === false) {
+          return console.error('ERROR:', updatedLobby.error);
+        }
+
+        const { playerOneChoice, playerTwoChoice } = updatedLobby.doc;
+
+        const winner = gameWinner(playerOneChoice, playerTwoChoice);
+
+        const [winningUser] = winner.split('-');
+        const incrementedUser = await incrementUserScore(Number(winningUser));
+
+        const otherUser = findLobby.users.find(
+          user => user.id !== Number(winningUser),
+        );
+
+        await resetLobbyAndSetScore(findLobby);
 
         socket.broadcast.emit(`user-in-game-${lobbyId}-winner-from-server`, {
-          winner: gameWinner(
-            findLobby.playerOneChoice,
-            findLobby.playerTwoChoice,
-          ),
+          winner,
+          doc: { incremented: incrementedUser.doc, other: otherUser },
         });
         return socket.emit(`user-in-game-${lobbyId}-winner-from-server`, {
-          winner: gameWinner(
-            findLobby.playerOneChoice,
-            findLobby.playerTwoChoice,
-          ),
+          winner,
+          doc: { incremented: incrementedUser.doc, other: otherUser },
         });
       }
 

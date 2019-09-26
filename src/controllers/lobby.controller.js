@@ -16,7 +16,6 @@ const createLobby = async lobbyName => {
     const createdLobby = await Lobby.create(
       {
         name: lobbyName,
-        score: '0-0',
       },
       { include: [{ model: User }] },
     );
@@ -35,7 +34,7 @@ const putUserInLobby = async (lobbyId, userId) => {
       return { success: false, error: 'COULD NOT FIND USER' };
     }
 
-    await findUser.update({ lobbyId: lobbyId });
+    await findUser.update({ lobbyId: lobbyId, lobbyScore: 0 });
     const findLobby = await Lobby.findOne({
       where: { id: lobbyId },
       include: [{ model: User }],
@@ -68,9 +67,26 @@ const updateLobbyChoices = async (userId, choice, lobby) => {
   }
 };
 
+const resetLobbyAndSetScore = async lobby => {
+  try {
+    if (!lobby) {
+      return { success: false, error: 'COULD NOT FIND LOBBY' };
+    }
+
+    const updatedLobby = await lobby.update({
+      playerOneChoice: null,
+      playerTwoChoice: null,
+    });
+    return { success: true, doc: updatedLobby };
+  } catch (error) {
+    return { success: false, error };
+  }
+};
+
 module.exports = {
   createLobby,
   getAllLobbies,
   putUserInLobby,
   updateLobbyChoices,
+  resetLobbyAndSetScore,
 };
