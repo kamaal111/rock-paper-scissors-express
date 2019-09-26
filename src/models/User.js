@@ -7,6 +7,7 @@ const User = db.define(
   {
     name: Sequelize.STRING,
     score: Sequelize.INTEGER,
+    lobbyScore: Sequelize.INTEGER,
   },
   { timestamps: false },
 );

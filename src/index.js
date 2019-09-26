@@ -91,6 +91,18 @@ io.on('connection', socket => {
     }
   });
 
+  socket.on('get-all-users-from-client', async _data => {
+    try {
+      const allUsers = await User.findAll({});
+      return socket.emit('get-all-users-from-server', {
+        success: true,
+        doc: allUsers,
+      });
+    } catch (error) {
+      return console.error('ERROR:', error);
+    }
+  });
+
   socket.on('all-lobbies-request-from-client', async _data => {
     try {
       const allLobbies = await getAllLobbies();
@@ -170,64 +182,27 @@ io.on('connection', socket => {
           return console.error('ERROR:', updatedLobby.error);
         }
 
-        const { playerOneChoice, playerTwoChoice, score } = updatedLobby.doc;
+        const { playerOneChoice, playerTwoChoice } = updatedLobby.doc;
 
         const winner = gameWinner(playerOneChoice, playerTwoChoice);
 
-        const [winningUser, , winnerPosition] = winner.split('-');
-        const [playerOneScore, playerTwoScore] = score.split('-');
+        const [winningUser] = winner.split('-');
+        const incrementedUser = await incrementUserScore(Number(winningUser));
 
-        const [playerOneId] = playerOneChoice.split('-');
-        const [playerTwoId] = playerTwoChoice.split('-');
-
-        const resetLobbyAndIncrementUserScore = async score => {
-          const resetedLobby = await resetLobbyAndSetScore(score, findLobby);
-
-          await incrementUserScore(Number(winningUser));
-
-          socket.broadcast.emit(`user-in-game-${lobbyId}-winner-from-server`, {
-            winner,
-            score: resetedLobby.doc.score,
-          });
-          return socket.emit(`user-in-game-${lobbyId}-winner-from-server`, {
-            winner,
-            score: resetedLobby.doc.score,
-          });
-        };
-
-        if (Number(winnerPosition) === 1) {
-          if (Number(playerOneId < Number(playerTwoId))) {
-            return await resetLobbyAndIncrementUserScore(
-              `${Number(playerOneScore) + 1}-${playerTwoScore}`,
-            );
-          }
-
-          return await resetLobbyAndIncrementUserScore(
-            `${playerTwoScore}-${Number(playerOneScore) + 1}`,
-          );
-        }
-
-        if (Number(winnerPosition) === 2) {
-          if (Number(playerOneId < Number(playerTwoId))) {
-            return await resetLobbyAndIncrementUserScore(
-              `${playerOneScore}-${Number(playerTwoScore) + 1}`,
-            );
-          }
-
-          return await resetLobbyAndIncrementUserScore(
-            `${Number(playerTwoScore) + 1}-${playerOneScore}`,
-          );
-        }
-
-        if (Number(playerOneId < Number(playerTwoId))) {
-          return await resetLobbyAndIncrementUserScore(
-            `${playerOneScore}-${playerOneScore}`,
-          );
-        }
-
-        return await resetLobbyAndIncrementUserScore(
-          `${playerTwoScore}-${playerOneScore}`,
+        const otherUser = findLobby.users.find(
+          user => user.id !== Number(winningUser),
         );
+
+        await resetLobbyAndSetScore(findLobby);
+
+        socket.broadcast.emit(`user-in-game-${lobbyId}-winner-from-server`, {
+          winner,
+          doc: { incremented: incrementedUser.doc, other: otherUser },
+        });
+        return socket.emit(`user-in-game-${lobbyId}-winner-from-server`, {
+          winner,
+          doc: { incremented: incrementedUser.doc, other: otherUser },
+        });
       }
 
       const updatedLobby = await updateLobbyChoices(userId, choice, findLobby);

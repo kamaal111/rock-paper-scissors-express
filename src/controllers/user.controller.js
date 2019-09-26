@@ -5,7 +5,11 @@ const findOrCreateUser = async username => {
     const findUser = await User.findOne({ where: { name: username } });
 
     if (!findUser) {
-      const createdUser = await User.create({ name: username, score: 0 });
+      const createdUser = await User.create({
+        name: username,
+        score: 0,
+        lobbyScore: 0,
+      });
       return { success: true, doc: createdUser };
     }
 
@@ -25,6 +29,7 @@ const incrementUserScore = async userId => {
 
     const incrementedUserScore = await findUser.update({
       score: findUser.score + 1,
+      lobbyScore: findUser.lobbyScore + 1,
     });
 
     return { success: true, doc: incrementedUserScore };
